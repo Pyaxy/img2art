@@ -125,8 +125,7 @@ def _generate_hl(
         HL_MAPPER[fore_color] = hl_name
         res = HL_TEMP % (
             hl_name,
-            f'fg="#{fore_color}"' +
-            (f', bg="#{bg_color}"' if bg_color else ""),
+            f'fg="#{fore_color}"' + (f', bg="#{bg_color}"' if bg_color else ""),
         )
     code = NVIM_HL_TEMP % (f'"{hl_name}"', 3 * x, 3 * x + 3)
     return res, code
@@ -199,7 +198,10 @@ def _convert_hl(rgb_data, bg_color):
         generated = [_generate_hl(rgb_data, i, j, bg_color) for j in range(w)]
         hl.extend([item[0] for item in generated if item[0]])
         code.append("{ %s }," % ("".join([item[1] for item in generated])))
-    code = "dashboard.section.header.opts.hl = {\n %s \n}" % ("\n".join(code))
+    code = (
+        'local header = { \n type = "text",\n opts = {\n position = "center",\n hl = {\n %s \n},},'
+        % ("\n".join(code))
+    )
     hl.append(code)
     return hl
 
@@ -237,15 +239,15 @@ def _save(raw_data: List[List[str]], path: str):
 
 
 def _convert_to_lua_fmt(data: List[str]):
-    return [f"[[ {d} ]]," for d in data]
+    res = [f"[[ {d} ]]," for d in data]
+    return res
 
 
 def _qunat(img, k: int):
     Z = img.reshape((-1, 3))
     Z = np.float32(Z)
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    _, labels, palette = cv2.kmeans(
-        Z, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+    _, labels, palette = cv2.kmeans(Z, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
     palette = palette.astype(np.uint8)
     quantized = palette[labels.flatten()]
     quantized_img = quantized.reshape((img.shape))
@@ -324,7 +326,10 @@ def convert(
         color_raw = _apply_color(raw, bg_color, resized_rgb_data)
         if alpha:
             hl_data = _convert_hl(resized_rgb_data[0], bg_color)
+            print(hl_data[0])
+            hl_data.append("val = {")
             hl_data.extend(_convert_to_lua_fmt(raw[0]))
+            hl_data.append("},\n}\nreturn {header = header}")
             hl_data = [hl_data]
 
     print_converted(color_raw or raw, interval=interval, loop=loop)
